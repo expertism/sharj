@@ -13,7 +13,6 @@
 // ==/UserScript==
 (function () {
     'use strict';
-
     const VERSION = "1.0.0";
     const DEFAULT_SEARCH_DELAY = 50;
     const DEFAULT_DELETE_DELAY = 50;
@@ -477,32 +476,35 @@
         }
 
         async runSingle() {
+            let before = undefined;
             do {
                 this.state.iterations++;
                 log.verb('Fetching messages...');
-                await this.search();
+                await this.search(before);
                 if (this.state._response._skip) break;
                 await this.filterMsgs();
                 log.verb(
                     `Grand total: ${this.state.grandTotal}`,
                     `To delete: ${this.state._toDelete.length}`,
-                    `Skipped: ${this.state._skipped.length}`,
-                    `offset: ${this.state.offset}`
+                    `Skipped: ${this.state._skipped.length}`
                 );
                 this.printStats();
                 this.calcEtr();
                 log.verb(`Estimated time remaining: ${msToHMS(this.stats.etr)}`);
                 if (this.state._toDelete.length > 0) {
                     await this.deleteMsgs();
-                }
-                else if (this.state._skipped.length > 0) {
-                    const oldOffset = this.state.offset;
-                    this.state.offset += this.state._skipped.length;
+                    // Set before to the last message ID in this batch for next page
+                    before = this.state._toDelete[this.state._toDelete.length - 1]?.id;
+                } else if (this.state._skipped.length > 0) {
+                    // If all messages were skipped, still paginate by last message
+                    before = this.state._skipped[this.state._skipped.length - 1]?.id;
                     log.verb('Nothing to delete on this page, checking next...');
-                    log.verb(`Skipped ${this.state._skipped.length}. Offset ${oldOffset} -> ${this.state.offset}`);
-                }
-                else {
+                } else {
                     log.verb('Ended because API returned empty page.');
+                    break;
+                }
+                if (!before) {
+                    log.verb('No more messages to paginate.');
                     break;
                 }
                 log.verb(`Waiting ${(this.options.searchDelay / 1000).toFixed(2)}s before next page...`);
@@ -516,10 +518,11 @@
             this.stats.startTime = new Date();
             log.success(`\nStarted at ${this.stats.startTime.toLocaleString()}`);
             if (this.onStart) this.onStart(this.state, this.stats);
+            let before = undefined;
             do {
                 this.state.iterations++;
                 log.verb('Fetching messages...');
-                await this.search();
+                await this.search(before);
                 if (this.state._response._skip) {
                     this.state.running = false;
                     break;
@@ -528,8 +531,7 @@
                 log.verb(
                     `Grand total: ${this.state.grandTotal}`,
                     `To delete: ${this.state._toDelete.length}`,
-                    `Skipped: ${this.state._skipped.length}`,
-                    `offset: ${this.state.offset}`
+                    `Skipped: ${this.state._skipped.length}`
                 );
                 this.printStats();
                 this.calcEtr();
@@ -540,16 +542,18 @@
                         break;
                     }
                     await this.deleteMsgs();
-                }
-                else if (this.state._skipped.length > 0) {
-                    const oldOffset = this.state.offset;
-                    this.state.offset += this.state._skipped.length;
+                    before = this.state._toDelete[this.state._toDelete.length - 1]?.id;
+                } else if (this.state._skipped.length > 0) {
+                    before = this.state._skipped[this.state._skipped.length - 1]?.id;
                     log.verb('Nothing to delete on this page, checking next...');
-                    log.verb(`Skipped ${this.state._skipped.length}. Offset ${oldOffset} -> ${this.state.offset}`);
-                }
-                else {
+                } else {
                     log.verb('Ended because API returned empty page.');
                     this.state.running = false;
+                    break;
+                }
+                if (!before) {
+                    log.verb('No more messages to paginate.');
+                    break;
                 }
                 log.verb(`Waiting ${(this.options.searchDelay / 1000).toFixed(2)}s before next page...`);
                 await wait(this.options.searchDelay);
@@ -589,7 +593,7 @@
             }
         }
 
-        async search() {
+        async search(before) {
             const base = this.options.guildId === '@me'
                 ? `https://discord.com/api/v10/channels/${this.options.channelId}/messages/`
                 : `https://discord.com/api/v10/guilds/${this.options.guildId}/messages/`;
@@ -606,7 +610,7 @@
                         ['channel_id', (this.options.guildId !== '@me' ? this.options.channelId : undefined) || undefined],
                         ['sort_by', 'timestamp'],
                         ['sort_order', 'desc'],
-                        ['offset', this.state.offset],
+                        ['before', before],
                         ['has', this.options.hasLink ? 'link' : undefined],
                         ['has', this.options.hasFile ? 'file' : undefined],
                         ['content', this.options.content || undefined],
@@ -673,7 +677,6 @@
                     let apiMsg = '';
                     try { apiMsg = (await resp.clone().json()).message || ''; } catch (e) { }
                     log.error(`${batchInfo}403 ${apiMsg || 'Missing Access'}`);
-                    this.state.offset += 25;
                     this.state._response = { messages: [], total_results: 0 };
                     return this.state._response;
                 }
@@ -690,7 +693,6 @@
                     let apiMsg = '';
                     try { apiMsg = (await resp.clone().json()).message || ''; } catch (e) { }
                     log.warn(`${batchInfo}${resp.status} ${apiMsg || 'Client error'} — skipping`);
-                    this.state.offset += 25;
                     this.state._response = { messages: [], total_results: 0 };
                     return this.state._response;
                 }
@@ -713,13 +715,15 @@
             const data = this.state._response;
             const total = data.total_results;
             if (total > this.state.grandTotal) this.state.grandTotal = total;
-            const discoveredMessages = data.messages.map(convo => convo.find(message => message.hit === true));
-            let messagesToDelete = discoveredMessages;
+            const discoveredMessages = (Array.isArray(data.messages) ? data.messages.flat() : []).filter(Boolean);
+            let messagesToDelete = discoveredMessages.filter(msg => msg && msg.id && msg.author);
             messagesToDelete = messagesToDelete.filter(msg => msg.type === 0 || (msg.type >= 6 && msg.type <= 21));
             messagesToDelete = messagesToDelete.filter(msg => msg.pinned ? this.options.includePinned : true);
             try {
-                const regex = new RegExp(this.options.pattern, 'i');
-                messagesToDelete = messagesToDelete.filter(msg => regex.test(msg.content));
+                if (this.options.pattern) {
+                    const regex = new RegExp(this.options.pattern, 'i');
+                    messagesToDelete = messagesToDelete.filter(msg => regex.test(msg.content));
+                }
             } catch (e) {
                 log.warn('Ignoring RegExp because pattern is malformed!', e);
             }
@@ -738,8 +742,9 @@
                 const authorLabel = message.author ? (message.author.display_name || message.author.username) : 'Unknown';
                 const contentPreview = (message.content || '').replace(/\n/g, '↵');
                 const attachmentsPreview = message.attachments && message.attachments.length ? ' [ATTACHMENTS]' : '';
-                log.debug(`[${this.state.delCount + 1}/${this.state.grandTotal}] <sup>${timestamp}</sup> <b>${redact(authorLabel)}</b>: <i>${redact(contentPreview)}</i>${attachmentsPreview}`, `<sup>{ID:${redact(message.id)}}</sup>`);
+                log.debug(`[${i + 1}/${msgs.length}] <sup>${timestamp}</sup> <b>${redact(authorLabel)}</b>: <i>${redact(contentPreview)}</i>${attachmentsPreview}`, `<sup>{ID:${redact(message.id)}}</sup>`);
                 let attempt = 0;
+                let deleted = false;
                 while (attempt < maxAttempt) {
                     const result = await this.deleteMessage(message);
                     if (result === 'RETRY') {
@@ -748,7 +753,15 @@
                         await wait(this.options.deleteDelay);
                         continue;
                     }
+                    if (result === 'OK') {
+                        deleted = true;
+                    } else if (result === 'FAILED' || result === 'FAIL_SKIP') {
+                        log.warn(`Failed to delete message ID: ${message.id} (status: ${result})`);
+                    }
                     break;
+                }
+                if (!deleted) {
+                    log.warn(`Message not deleted: ${message.id}`);
                 }
                 this.calcEtr();
                 if (this.onProgress) this.onProgress(this.state, this.stats);
