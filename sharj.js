@@ -337,11 +337,7 @@
                 </div>
             </div>
             <pre id="logArea" class="logarea scroll">
-                <div class="" style="background: var(--background-mentioned); padding: .5em;">Notice: sharj may be working slower than usual and<wbr>require multiple attempts due to a recent Discord update.<br>We're working on a fix, and we thank you for your patience.</div>
-                <center>
-                    <div>Star <a href="{{HOME}}" target="_blank" rel="noopener noreferrer">this project</a> on GitHub!</div>
-                    <div><a href="{{HOME}}/discussions" target="_blank" rel="noopener noreferrer">Issues or help</a></div>
-                </center>
+                <div>Star <a href="{{HOME}}" target="_blank" rel="noopener noreferrer">this project</a> on GitHub!</div>
             </pre>
             <div class="tbar footer row">
                 <div id="progressPercent"></div>
