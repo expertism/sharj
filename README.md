@@ -47,24 +47,6 @@ Based on [undiscord](https://github.com/victornpb/undiscord) by victornpb.
 
 ---
 
-## Troubleshooting
-
-| Error              | Solution                                        |
-| ------------------ | ----------------------------------------------- |
-| 403 Missing Access | Channel deleted or no permission — auto-skipped |
-| 401 Unauthorized   | Refresh Discord, click "fill" for token         |
-| 429 Rate Limited   | Normal — script waits automatically             |
-
----
-
-## Safety
-
-- ⚠️ Runs locally in your browser only
-- ⚠️ Token never sent anywhere except Discord
-- ⚠️ Deleted messages are **permanent**
-
----
-
 ## License
 
 MIT License - see [LICENSE.md](LICENSE.md)

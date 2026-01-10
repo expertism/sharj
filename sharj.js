@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            Sharj
 // @description     Bulk delete your Discord messages with filters and rate-limit handling
-// @version         1.0.0
+// @version         1.2.0
 // @author          expertism
 // @match           https://*.discord.com/app
 // @match           https://*.discord.com/channels/*
@@ -13,7 +13,7 @@
 // ==/UserScript==
 (function () {
     'use strict';
-    const VERSION = "1.0.0";
+    const VERSION = "1.2.0";
     const DEFAULT_SEARCH_DELAY = 50;
     const DEFAULT_DELETE_DELAY = 50;
     const DEFAULT_BACKOFF_MS = 1000;
