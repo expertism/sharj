@@ -1282,70 +1282,74 @@
     }
 
     async function startAction() {
-        console.log(PREFIX, 'startAction (expanded discovery)');
-        const authorId = $('input#authorId').value.trim();
-        const guildId = $('input#guildId').value.trim();
-        const rawChannelIds = $('input#channelId').value.trim().split(/\s*,\s*/).filter(Boolean);
-        const content = $('input#search').value.trim();
-        const hasLink = $('input#hasLink').checked;
-        const hasFile = $('input#hasFile').checked;
-        const includePinned = $('input#includePinned').checked;
-        const pattern = $('input#pattern').value;
-        const authToken = $('input#token').value.trim() || fillToken();
-        if (!authToken) return log.error('Authorization token is required! Click "fill" or enter manually.');
-        if (!isValidToken(authToken)) return log.error('Invalid authorization token format!');
-        if (!guildId) return log.error('You must fill the "Server ID" field!');
-        if (guildId !== '@me' && !isValidSnowflake(guildId)) return log.error('Invalid Server ID format! Must be a valid Discord snowflake.');
-        if (authorId && !isValidSnowflake(authorId)) return log.error('Invalid Author ID format! Must be a valid Discord snowflake.');
-        if (rawChannelIds.length === 0) return log.error('You must fill the "Channel ID" field!');
-        ui.logArea.innerHTML = '';
-        core.resetState();
-        core.options = {
-            ...core.options,
-            authToken,
-            authorId,
-            guildId,
-            channelId: undefined,
-            content,
-            hasLink,
-            hasFile,
-            includePinned,
-            pattern,
-        };
-        const expandedChannelIds = [];
-        for (const ch of rawChannelIds) {
-            try {
-                const found = await findChannels(authToken, guildId, ch);
-                if (found && found.length) expandedChannelIds.push(...found);
-                else expandedChannelIds.push(ch);
-            } catch (e) {
-                log.warn('Channel discovery failed for', ch, e);
-                expandedChannelIds.push(ch);
+        try {
+            console.log(PREFIX, 'startAction (expanded discovery)');
+            const authorId = $('input#authorId').value.trim();
+            const guildId = $('input#guildId').value.trim();
+            const rawChannelIds = $('input#channelId').value.trim().split(/\s*,\s*/).filter(Boolean);
+            const content = $('input#search').value.trim();
+            const hasLink = $('input#hasLink').checked;
+            const hasFile = $('input#hasFile').checked;
+            const includePinned = $('input#includePinned').checked;
+            const pattern = $('input#pattern').value;
+            const authToken = $('input#token').value.trim() || fillToken();
+            if (!authToken) return log.error('Authorization token is required! Click "fill" or enter manually.');
+            if (!isValidToken(authToken)) return log.error('Invalid authorization token format!');
+            if (!guildId) return log.error('You must fill the "Server ID" field!');
+            if (guildId !== '@me' && !isValidSnowflake(guildId)) return log.error('Invalid Server ID format! Must be a valid Discord snowflake.');
+            if (authorId && !isValidSnowflake(authorId)) return log.error('Invalid Author ID format! Must be a valid Discord snowflake.');
+            if (rawChannelIds.length === 0) return log.error('You must fill the "Channel ID" field!');
+            ui.logArea.innerHTML = '';
+            core.resetState();
+            core.options = {
+                ...core.options,
+                authToken,
+                authorId,
+                guildId,
+                channelId: undefined,
+                content,
+                hasLink,
+                hasFile,
+                includePinned,
+                pattern,
+            };
+            const expandedChannelIds = [];
+            for (const ch of rawChannelIds) {
+                try {
+                    const found = await findChannels(authToken, guildId, ch);
+                    if (found && found.length) expandedChannelIds.push(...found);
+                    else expandedChannelIds.push(ch);
+                } catch (e) {
+                    log.warn('Channel discovery failed for', ch, e);
+                    expandedChannelIds.push(ch);
+                }
             }
-        }
-        const uniqueChannels = Array.from(new Set(expandedChannelIds));
-        if (uniqueChannels.length > 1) {
-            log.info(`Starting batch deletion on ${uniqueChannels.length} channels...`);
-            const jobs = uniqueChannels.map(ch => ({
-                guildId: guildId,
-                channelId: ch,
-            }));
-            try {
-                await core.runBatch(jobs);
-            } catch (e) {
-                log.error(`Batch run failed: ${e.message || e}`);
+            const uniqueChannels = Array.from(new Set(expandedChannelIds));
+            if (uniqueChannels.length > 1) {
+                log.info(`Starting batch deletion on ${uniqueChannels.length} channels...`);
+                const jobs = uniqueChannels.map(ch => ({
+                    guildId: guildId,
+                    channelId: ch,
+                }));
+                try {
+                    await core.runBatch(jobs);
+                } catch (e) {
+                    log.error(`Batch run failed: ${e.message || e}`);
+                }
             }
-        }
-        else if (uniqueChannels.length === 1) {
-            core.options.channelId = uniqueChannels[0];
-            try {
-                await core.run();
-            } catch (e) {
-                log.error(`Run failed: ${e.message || e}`);
-                core.stop();
+            else if (uniqueChannels.length === 1) {
+                core.options.channelId = uniqueChannels[0];
+                try {
+                    await core.run();
+                } catch (e) {
+                    log.error(`Run failed: ${e.message || e}`);
+                    core.stop();
+                }
+            } else {
+                log.warn('No valid channels to process. Check Channel ID input.');
             }
-        } else {
-            log.warn('No valid channels to process. Check Channel ID input.');
+        } catch (e) {
+            log.error('Unexpected error in startAction:', e);
         }
     }
 
@@ -1360,13 +1364,4 @@
         console.error(PREFIX, 'Failed to initialize UI:', e);
         alert('Sharj failed to initialize. Check console for details.');
     }
-
-    window.addEventListener('unhandledrejection', e => {
-        try { log.error('Unhandled promise rejection', e.reason); } catch (e) { console.error(e); }
-        e.preventDefault();
-    });
-
-    window.addEventListener('error', e => {
-        try { log.error('Unhandled error', e.error || e.message); } catch (e) { console.error(e); }
-    });
 })();
