@@ -28,8 +28,6 @@ Portions of this project (core message search and deletion) are adapted from [un
 
 ---
 
----
-
 MIT License (undiscord)
 
 Copyright (c) 2019 victornpb

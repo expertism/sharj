@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name            Sharj
-// @description     Bulk delete your Discord messages with filters and rate-limit handling
-// @version         1.2.0
+// @description     Bulk delete your Discord messages
+// @version         1.3.0
 // @author          expertism
 // @match           https://*.discord.com/app
 // @match           https://*.discord.com/channels/*
 // @match           https://*.discord.com/login
 // @license         MIT
 // @namespace       https://github.com/expertism/sharj
-// @icon            https://expertism.github.io/sharj/owo.png
+// @icon            https://expertism.github.io/sharj/images/owo.png
 // @grant           none
 // ==/UserScript==
 (function () {
     'use strict';
-    const VERSION = "1.2.0";
+    const VERSION = "1.3.0";
     const DEFAULT_SEARCH_DELAY = 50;
     const DEFAULT_DELETE_DELAY = 50;
     const DEFAULT_BACKOFF_MS = 1000;
@@ -39,6 +39,7 @@
         const headerCandidates = ['retry-after', 'x-ratelimit-reset-after', 'x-ratelimit-reset'];
         for (const h of headerCandidates) {
             const v = resp.headers.get(h);
+
             if (v) {
                 const ms = parseRetryMs(v);
                 if (Number.isFinite(ms)) return ms;
@@ -374,7 +375,7 @@
     const ask = msg => new Promise(resolve => setTimeout(() => resolve(window.confirm(msg)), 10));
     const interpolate = (str, obj, removeMissing = false) => str.replace(/\{\{([\w_]+)\}\}/g, (m, key) => obj[key] || (removeMissing ? '' : m));
 
-    class Core {
+    class SharjCore {
         options = {
             authToken: null,
             authorId: null,
@@ -1130,7 +1131,7 @@
 
     const HOME = 'https://github.com/expertism/sharj';
 
-    const core = new Core();
+    const core = new SharjCore();
 
     const ui = {
         sharjWindow: null,
@@ -1226,7 +1227,7 @@
             }
         };
         setLogFn(printLog);
-        setupCore();
+        setupSharjCore();
     }
 
     function printLog(type = '', args) {
@@ -1235,7 +1236,7 @@
         if (type === 'error') console.error(PREFIX, ...Array.from(args));
     }
 
-    function setupCore() {
+    function setupSharjCore() {
         core.onStart = (state, stats) => {
             console.log(PREFIX, 'onStart', state, stats);
             $('#start').disabled = true;

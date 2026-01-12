@@ -7,12 +7,6 @@ Bulk delete your Discord messages with filters and smart rate-limit handling.
 
 ---
 
-## Credits
-
-Based on [undiscord](https://github.com/victornpb/undiscord) by victornpb.
-
----
-
 ## Features
 
 - 🚀 Batch deletion across multiple channels
@@ -44,12 +38,6 @@ Based on [undiscord](https://github.com/victornpb/undiscord) by victornpb.
 1. Request your data: Discord Settings → Privacy & Safety → Request all of my Data
 2. Import `messages/index.json` in the **"Wipe Archive"** section
 3. Click **"▶︎ Delete"**
-
----
-
-## License
-
-MIT License - see [LICENSE.md](LICENSE.md)
 
 ---
 
